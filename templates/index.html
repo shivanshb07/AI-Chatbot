@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Chatbot</title>
+  <title>Bahl AI</title>
   <style>
     body { font-family: Arial; background: #f4f4f4; }
     #chat { max-width: 600px; margin: auto; background: white; padding: 20px; }
@@ -12,7 +12,7 @@
 <body>
 
 <div id="chat">
-  <h2>AI Chatbot 🤖</h2>
+  <h2>Bahl AI 🤖</h2>
   <div id="messages"></div>
   <input id="input" placeholder="Type a message..." />
   <button onclick="send()">Send</button>
@@ -33,7 +33,7 @@ async function send() {
   });
 
   const data = await res.json();
-  document.getElementById("messages").innerHTML += `<p><b>Bot:</b> ${data.reply}</p>`;
+  document.getElementById("messages").innerHTML += `<p><b>Bahl AI:</b> ${data.reply}</p>`;
 }
 </script>
 
