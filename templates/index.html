@@ -1,40 +1,220 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Bahl AI</title>
-  <style>
-    body { font-family: Arial; background: #f4f4f4; }
-    #chat { max-width: 600px; margin: auto; background: white; padding: 20px; }
-    input { width: 80%; padding: 10px; }
-    button { padding: 10px; }
-  </style>
+<meta charset="UTF-8" />
+<title>Bahl AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    font-family: system-ui, sans-serif;
+    background: #0f172a;
+    color: #e5e7eb;
+}
+
+.sidebar {
+    width: 260px;
+    background: #020617;
+    border-right: 1px solid #334155;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.new-chat {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: #2563eb;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.chat-item {
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 6px;
+    background: #1e293b;
+}
+
+.chat-item:hover {
+    background: #334155;
+}
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    padding: 16px;
+    border-bottom: 1px solid #334155;
+    text-align: center;
+    font-weight: 600;
+}
+
+.messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.message {
+    max-width: 75%;
+    margin-bottom: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+.user {
+    background: #2563eb;
+    margin-left: auto;
+}
+
+.bot {
+    background: #1e293b;
+}
+
+.message pre {
+    background: #020617;
+    padding: 10px;
+    overflow-x: auto;
+    border-radius: 6px;
+}
+
+form {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #334155;
+}
+
+input {
+    flex: 1;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: #020617;
+    color: white;
+}
+
+button {
+    padding: 12px 16px;
+    background: #2563eb;
+    border: none;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+</style>
 </head>
+
 <body>
 
-<div id="chat">
-  <h2>Bahl AI 🤖</h2>
-  <div id="messages"></div>
-  <input id="input" placeholder="Type a message..." />
-  <button onclick="send()">Send</button>
+<div class="sidebar">
+    <button class="new-chat" onclick="startNewChat()">+ New Chat</button>
+    <div id="chatList"></div>
+</div>
+
+<div class="main">
+    <header>Bahl AI 🤖</header>
+    <div id="messages" class="messages"></div>
+
+    <form id="chatForm">
+        <input id="input" placeholder="Message Bahl AI..." required />
+        <button>Send</button>
+    </form>
 </div>
 
 <script>
-async function send() {
-  const input = document.getElementById("input");
-  const message = input.value;
-  input.value = "";
+let currentConversation = null;
+const messagesDiv = document.getElementById("messages");
 
-  document.getElementById("messages").innerHTML += `<p><b>You:</b> ${message}</p>`;
-
-  const res = await fetch("/chat", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ message })
-  });
-
-  const data = await res.json();
-  document.getElementById("messages").innerHTML += `<p><b>Bahl AI:</b> ${data.reply}</p>`;
+async function startNewChat() {
+    const res = await fetch("/new-chat", { method: "POST" });
+    const data = await res.json();
+    currentConversation = data.conversationId;
+    messagesDiv.innerHTML = "";
+    loadSidebar();
 }
+
+async function loadSidebar() {
+    const res = await fetch("/conversations");
+    const chats = await res.json();
+    const list = document.getElementById("chatList");
+    list.innerHTML = "";
+
+    chats.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "chat-item";
+        div.textContent = c.title;
+        div.onclick = () => loadConversation(c.id);
+        list.appendChild(div);
+    });
+}
+
+async function loadConversation(id) {
+    const res = await fetch(`/conversation/${id}`);
+    const convo = await res.json();
+    currentConversation = convo.id;
+    messagesDiv.innerHTML = "";
+
+    convo.messages.forEach(m => {
+        addMessage(m.content, m.role);
+    });
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function addMessage(text, role) {
+    const div = document.createElement("div");
+    div.className = `message ${role}`;
+    div.innerHTML = marked.parse(text);
+    messagesDiv.appendChild(div);
+}
+
+document.getElementById("chatForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const input = document.getElementById("input");
+    const text = input.value.trim();
+    if (!text) return;
+
+    // 🔥 Auto-create chat if none exists
+    if (!currentConversation) {
+        const res = await fetch("/new-chat", { method: "POST" });
+        const data = await res.json();
+        currentConversation = data.conversationId;
+        loadSidebar();
+    }
+
+    input.value = "";
+    addMessage(text, "user");
+
+    const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            message: text,
+            conversationId: currentConversation
+        })
+    });
+
+    const data = await res.json();
+    addMessage(data.reply, "bot");
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+loadSidebar();
 </script>
 
 </body>
